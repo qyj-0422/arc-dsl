@@ -1,7 +1,7 @@
 import os
 import json
 import inspect
-import tqdm
+from tqdm import tqdm
 
 import arc_types
 import constants
@@ -9,7 +9,7 @@ import dsl
 import tests
 import solvers
 import numpy as np
-
+import argparse
 
 
 def get_data(train=True):
@@ -104,7 +104,7 @@ def test_solvers_correctness(data, solvers_module):
     """ tests the implemented solvers for correctness """
     n_correct = 0
     n = len(data["train"])
-    for key in tqdm.tqdm(data['train'].keys(), total=n):
+    for key in tqdm(data['train'].keys(), total=n):
         task = data['train'][key] + data['test'][key]
         try:
             solver = getattr(solvers_module, f'solve_{key}')
@@ -199,9 +199,73 @@ def test_find_right_solver_for_task(solvers_module):
     print(f'{same_num} out of {len(data)} solvers were solved by its own solver.')
 
 
+def hodel_solver(data_path, save_path):
+    # hodel is writer's name
+    with open(data_path, 'r') as f:
+        tasks_name = list(json.load(f).keys())
+
+    with open(data_path, 'r') as f:
+        tasks_file = list(json.load(f).values())
+
+    res = {}
+    not_solved = 0
+
+    for n in tqdm(range(len(tasks_name))):
+        task = tasks_file[n]
+        t = tasks_name[n]
+        solver = find_right_solver_for_task(solvers, task)
+        task_res = []
+        for i in range(len(task['test'])):
+            test_input = np.array(task['test'][i]['input'])
+            if solver:
+                try:
+                    p_answer = predict_test_output(test_input, solver)
+                    task_res.append(p_answer)
+                except:
+                    task_res.append([[0, 0], [0, 0]])
+                    not_solved += 1
+            else:
+                task_res.append([[0, 0], [0, 0]])
+                not_solved += 1
+        res[t] = task_res
+    print(f'{not_solved} task_input not solved correctly.')
+    def convert(o):
+        if isinstance(o, np.integer):  # 检查是否为 numpy 整数类型
+            return int(o)
+        raise TypeError(f"Object of type {o.__class__.__name__} is not JSON serializable")
+    with open(save_path, 'w') as f:
+        json.dump(res, f, default=convert)
+
+
+def test_hodel_solver():
+    with open('./data/hodel_solutions.json') as f:
+        sub_dsl = json.load(f)
+    for n in range(len(sub_dsl)):
+        t = list(sub_dsl.keys())[n]
+        for i in range(len(sub_dsl[t])):
+            ans = sub_dsl[t][i]
+            print('end')
+
+
 if __name__ == '__main__':
-    main()
+    # main()
     # test_whether_right_solver(solvers)
     # test_predict_test_output(solvers)
     # test_find_right_solver_for_task(solvers)
+
+
+    parser = argparse.ArgumentParser()
+
+    # 添加参数
+    parser.add_argument("test_path", type=str, help="test data path")
+    parser.add_argument("output_path", type=str, help="path to save hodel answer")
+
+    # 解析参数
+    args = parser.parse_args()
+
+    # 使用解析的参数
+    print("test_path", args.test_path)
+    print("output_path", args.output_path)
+
+    hodel_solver(args.test_path, args.output_path)
 
