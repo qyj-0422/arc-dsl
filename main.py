@@ -8,11 +8,12 @@ import constants
 import dsl
 import tests
 import solvers
+import numpy as np
 
 
 
 def get_data(train=True):
-    path = f'../data/{"training" if train else "evaluation"}'
+    path = f'./data/{"training" if train else "evaluation"}'
     data = {}
     for fn in os.listdir(path):
         with open(f'{path}/{fn}') as f:
@@ -122,5 +123,85 @@ def main():
     test_solvers_correctness(data, solvers)
 
 
+# new function added by QYJ
+def whether_right_solver(solver, task):
+    ast = lambda g: tuple(tuple(r) for r in g)  # 将源格式转为solver所需的格式
+
+    try:
+        for ex in task['train']:
+            if not solver(ast(ex['input'])) == ast(ex['output']):
+                return False
+    except:
+        return False
+    return True
+
+
+def test_whether_right_solver(solvers_module):
+    with open('./data/arc-agi_training_challenges.json', 'r') as f:
+        data = json.load(f)
+    for n in range(len(data)):
+        task = list(data.values())[n]
+        t = list(data.keys())[n]
+        solver = getattr(solvers_module, f'solve_{t}')
+        if not whether_right_solver(solver, task):
+            print(f'task {t} is wrong')
+
+
+def predict_test_output(test_input, solver):
+    ast = lambda g: tuple(tuple(r) for r in g)  # 将源格式转为solver所需的格式
+    tsa = lambda g: list(list(r) for r in g)  # 将solver所需的格式转为源格式
+    return tsa(solver(ast(test_input)))
+
+
+def test_predict_test_output(solvers_module):
+    with open('./data/arc-agi_training_challenges.json', 'r') as f:
+        data = json.load(f)
+    with open('./data/arc-agi_training_solutions.json', 'r') as f:
+        answer = json.load(f)
+    for n in range(len(data)):
+        task = list(data.values())[n]
+        t = list(data.keys())[n]
+        solver = getattr(solvers_module, f'solve_{t}')
+        for i in range(len(task['test'])):
+            test_input = np.array(task['test'][i]['input'])
+            try:
+                p_answer = np.array(predict_test_output(test_input, solver))
+                if not np.array_equal(p_answer, answer[t][i]):
+                    print(f'task {t} is wrong')
+            except:
+                print(f'task {t} can\' be solved')
+
+
+def find_right_solver_for_task(solvers_module, task):
+    functions = get_functions(solvers_module.__file__)
+    for func in functions:
+        solver = getattr(solvers_module, func)
+        if whether_right_solver(solver, task):
+            return solver
+    return False
+
+
+def test_find_right_solver_for_task(solvers_module):
+    with open('./data/arc-agi_training_challenges.json', 'r') as f:
+        data = json.load(f)
+    found_num = 0
+    same_num = 0
+    for n in range(len(data)):
+        task = list(data.values())[n]
+        t = list(data.keys())[n]
+        solver = find_right_solver_for_task(solvers_module, task)
+        if solver:
+            print(f'solver for task {t} is {solver.__name__}')
+            found_num += 1
+            if t == solver.__name__:
+                same_num += 1
+    print(f'{found_num} out of {len(data)} solvers were found correctly.')
+    print(f'{same_num} out of {len(data)} solvers were solved by its own solver.')
+
+
 if __name__ == '__main__':
     main()
+    # test_whether_right_solver(solvers)
+    # test_predict_test_output(solvers)
+    # test_find_right_solver_for_task(solvers)
+

@@ -3,6 +3,13 @@
 The DSL was created with the aim of being expressive enough to allow programs solving arbitrary ARC tasks, and generic, i.e. consisting of only few primitives, each useful for many tasks (see [`dsl.py`](dsl.py)). As a proof of concept, solver programs for the training tasks were written (see [`solvers.py`](solvers.py)). See [`arc_dsl_writeup.pdf`](arc_dsl_writeup.pdf) for a more detailed description of the work.
 
 
+## How to run
+1. download the 6 data files from kaggle
+2. put them in data/
+3. mkdir data/training data/evaluation
+4. run preprocess.py
+5. run main.py
+
 ## Example solver program for task 00d62c1b written in the DSL
 
 ![Task 00d62c1b](00d62c1b.png)
